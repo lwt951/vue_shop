@@ -26,6 +26,7 @@
             prefix-icon="el-icon-lock"
             v-model="loginForm.password"
             type="password"
+            show-password
           ></el-input>
         </el-form-item>
         <!-- 按鈕區 -->
@@ -73,9 +74,9 @@ export default {
         if (!valid) return
         const { data: result } = await this.$http.post('login', this.loginForm)
         if (result.meta.status !== 200) {
-          return this.$message({ message: result.meta.msg, type: 'error' })
+          return this.$message.error(result.meta.msg)
         }
-        this.$message({ message: result.meta.msg, type: 'success' })
+        this.$message.success(result.meta.msg)
         // 儲存token至sessionStorage
         sessionStorage.setItem('token', result.data.token)
         // 跳轉頁面至Home
