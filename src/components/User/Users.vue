@@ -7,7 +7,7 @@
       <el-breadcrumb-item>用戶列表</el-breadcrumb-item>
     </el-breadcrumb>
     <!-- 卡片區域 -->
-    <el-card class="box-card">
+    <el-card>
       <!-- 搜尋. 添加按鈕區域 -->
       <el-row :gutter="20">
         <el-col :span="8">
