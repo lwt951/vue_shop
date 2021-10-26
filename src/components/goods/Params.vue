@@ -281,7 +281,6 @@ export default {
     },
     // 監控標籤tab點擊事件
     handelTabClick() {
-      console.log(this.activeName)
       this.getParamsList()
     },
     // 獲取參數屬性列表

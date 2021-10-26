@@ -77,6 +77,7 @@
         :page-size="queryInfo.pagesize"
         @current-change="handleCurrentChange"
         layout="total, prev, pager, next, jumper"
+        background
       >
       </el-pagination>
     </el-card>
