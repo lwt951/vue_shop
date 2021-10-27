@@ -54,6 +54,7 @@
               type="primary"
               icon="el-icon-edit"
               size="mini"
+              @click="goEditPage(scope.row.goods_id)"
             ></el-button>
             <el-button
               type="danger"
@@ -157,6 +158,10 @@ export default {
     // 跳轉到商品添加頁面
     goAddPage() {
       this.$router.push('/goods/add')
+    },
+    // 跳轉到商品添加頁面
+    goEditPage(id) {
+      this.$router.push(`/goods/edit/${id}`)
     }
   },
   created() {

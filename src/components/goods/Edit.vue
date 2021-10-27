@@ -5,12 +5,12 @@
       <el-breadcrumb-item :to="{ path: '/home' }">首頁</el-breadcrumb-item>
       <el-breadcrumb-item>商品管理</el-breadcrumb-item>
       <el-breadcrumb-item :to="{ path: '/goods' }">商品列表</el-breadcrumb-item>
-      <el-breadcrumb-item>添加商品</el-breadcrumb-item>
+      <el-breadcrumb-item>修改商品</el-breadcrumb-item>
     </el-breadcrumb>
     <!-- 卡片區域 -->
     <el-card>
       <el-alert
-        title="添加商品訊息"
+        title="修改商品訊息"
         type="info"
         show-icon
         :closable="false"
@@ -26,7 +26,7 @@
         <el-step title="完成"></el-step>
       </el-steps>
       <el-form
-        :model="addForm"
+        :model="editForm"
         :rules="addFormRules"
         ref="addFormRef"
         label-width="100px"
@@ -41,32 +41,32 @@
         >
           <el-tab-pane label="基本訊息" name="0">
             <el-form-item label="商品名稱" prop="goods_name">
-              <el-input v-model="addForm.goods_name"></el-input>
+              <el-input v-model="editForm.goods_name"></el-input>
             </el-form-item>
             <el-form-item label="商品價格" prop="goods_price">
               <el-input
-                v-model.number="addForm.goods_price"
+                v-model.number="editForm.goods_price"
                 type="number"
               ></el-input>
             </el-form-item>
             <el-form-item label="商品重量" prop="goods_weight">
               <el-input
-                v-model.number="addForm.goods_weight"
+                v-model.number="editForm.goods_weight"
                 type="number"
               ></el-input>
             </el-form-item>
             <el-form-item label="商品數量" prop="goods_number">
               <el-input
-                v-model.number="addForm.goods_number"
+                v-model.number="editForm.goods_number"
                 type="number"
               ></el-input>
             </el-form-item>
-            <el-form-item label="商品分類" prop="goods_cat">
+            <el-form-item label="商品分類 (禁止修改)" prop="goods_cat">
               <el-cascader
-                v-model="addForm.goods_cat"
+                v-model="editForm.goods_cat"
                 :options="cateList"
                 :props="cateProps"
-                @change="handleChange"
+                disabled
               ></el-cascader>
             </el-form-item>
           </el-tab-pane>
@@ -105,16 +105,17 @@
               :on-remove="handleRemove"
               list-type="picture"
               :on-success="handelUploadSuccess"
+              :file-list="fileList"
             >
               <el-button size="small" type="primary">點擊上傳</el-button>
             </el-upload>
           </el-tab-pane>
           <el-tab-pane label="商品內容" name="4">
             <!-- 富文本編輯器組件 -->
-            <quill-editor v-model="addForm.goods_introduce"></quill-editor>
-            <!-- 添加商品按鈕 -->
-            <el-button type="primary" class="btnAdd" @click="add"
-              >添加商品</el-button
+            <quill-editor v-model="editForm.goods_introduce"></quill-editor>
+            <!-- 修改商品按鈕 -->
+            <el-button type="primary" class="btnAdd" @click="edit"
+              >修改完成</el-button
             >
           </el-tab-pane>
         </el-tabs>
@@ -136,19 +137,8 @@ export default {
     return {
       // 控制步驟條與表單的雙向綁定數據
       activeIndex: '0',
-      // 表單數據對象
-      addForm: {
-        goods_name: '',
-        goods_price: 1,
-        goods_weight: 0,
-        goods_number: 1,
-        goods_cat: [],
-        // 圖片數組
-        pics: [],
-        // 商品詳情描述
-        goods_introduce: '',
-        attrs: []
-      },
+      // 修改表單數據對象
+      editForm: {},
       // 表單驗證規則對象
       addFormRules: {
         goods_name: [
@@ -191,6 +181,8 @@ export default {
       previewDialogVisible: false,
       // 當前預覽圖片位置
       previewPath: '',
+      // 修改圖片存放區
+      fileList: [],
       // 是否獲取過many跟only資料
       isParamList: false
     }
@@ -204,16 +196,9 @@ export default {
       }
       this.cateList = result.data
     },
-    // 級聯選擇器改變事件
-    handleChange() {
-      if (this.addForm.goods_cat.length !== 3) {
-        this.addForm.goods_cat = []
-      }
-      this.isParamList = false
-    },
     // Tab切換事件
     beforeTabLeave(newActiveName, oldActiveName) {
-      if (oldActiveName === '0' && this.addForm.goods_cat.length !== 3) {
+      if (oldActiveName === '0' && this.editForm.goods_cat.length !== 3) {
         this.$message.error('未選擇商品分類')
         return false
       }
@@ -235,12 +220,18 @@ export default {
         this.manyTableData = result.data
       } else {
         this.onlyTableData = result.data
+        this.onlyTableData.forEach((item) => {
+          this.editForm.attrs.forEach((item2) => {
+            if (item.attr_name === item2.attr_name) {
+              item.attr_vals = item2.attr_value
+            }
+          })
+        })
       }
     },
     // 點擊tab處理函數
     tabClicked() {
-      // 證明訪問動態參數面板
-      if ((this.activeIndex === '1' || this.activeIndex === '2') && !this.isParamList) {
+      if (!this.isParamList) {
         // 獲取商品參數清單
         this.getParamList('many')
         // 獲取商品屬性清單
@@ -250,15 +241,26 @@ export default {
     },
     // 刪除圖片處理函數
     handleRemove(file) {
-      this.addForm.pics.forEach((item, index, arr) => {
-        if (item.pic === file.response.data.tmp_path) {
-          arr.splice(index, 1)
+      this.editForm.pics.forEach((item, index, arr) => {
+        if (file.response) {
+          if (item.pic === file.response.data.tmp_path) {
+            arr.splice(index, 1)
+          }
+        } else {
+          if (item.pics_mid_url === file.url) {
+            arr.splice(index, 1)
+          }
         }
       })
     },
     // 處理圖片預覽效果
     handlePreview(file) {
-      this.previewPath = file.response.data.url
+      if (file.response) {
+        this.previewPath = file.response.data.url
+      } else {
+        this.previewPath = file.url
+      }
+
       this.previewDialogVisible = true
     },
     // 圖片上傳成功鉤子
@@ -266,49 +268,72 @@ export default {
       // 拼接圖片訊息對象
       const picInfo = { pic: response.data.tmp_path }
       // 將圖片訊息對象push到pics數組裡
-      this.addForm.pics.push(picInfo)
+      this.editForm.pics.push(picInfo)
     },
-    // 添加商品
-    add() {
+    // 修改商品
+    edit() {
       this.$refs.addFormRef.validate(async (valid) => {
         if (!valid) {
           return this.$message.error('請填寫必要的表單項')
         }
-        // 處理添加表單
+        // 處理修改表單
         // 將goods_cat應api要求轉成字符串
-        this.addForm.goods_cat = this.addForm.goods_cat.join(',')
+        this.editForm.goods_cat = this.editForm.goods_cat.join(',')
         // 處理attrs(動態參數, 靜態屬性)
+        this.editForm.attrs = []
         this.manyTableData.forEach((item) => {
           const manyObj = {
             attr_id: item.attr_id,
             attr_value: item.attr_vals.join(' ')
           }
-          this.addForm.attrs.push(manyObj)
+          this.editForm.attrs.push(manyObj)
         })
         this.onlyTableData.forEach((item) => {
           const onlyObj = { attr_id: item.attr_id, attr_value: item.attr_vals }
-          this.addForm.attrs.push(onlyObj)
+          this.editForm.attrs.push(onlyObj)
         })
-        const { data: result } = await this.$http.post('goods', this.addForm)
-        if (result.meta.status !== 201) {
-          this.addForm.goods_cat = this.addForm.goods_cat.split(',')
-          console.log(this.addForm)
-          console.log(this.onlyTableData)
+        const { data: result } = await this.$http.put(
+          `goods/${this.editForm.goods_id}`,
+          this.editForm
+        )
+        if (result.meta.status !== 200) {
+          this.editForm.goods_cat = this.editForm.goods_cat.split(',')
           return this.$message.error(result.meta.msg)
         }
         this.$message.success(result.meta.msg)
         // 跳轉到商品列表頁面
         this.$router.push('/goods')
       })
+    },
+    // 獲取修改商品訊息
+    async getEditList() {
+      const editId = this.$route.params.id
+      const { data: result } = await this.$http.get(`goods/${editId}`)
+      if (result.meta.status !== 200) {
+        return this.$message.error(result.meta.msg)
+      }
+      this.editForm = result.data
+      // 做好分類id數組
+      this.editForm.goods_cat = [
+        this.editForm.cat_one_id,
+        this.editForm.cat_two_id,
+        this.editForm.cat_three_id
+      ]
+      // 做好修改圖片數組
+      this.editForm.pics.forEach((item) => {
+        const picObj = { name: item.pics_id, url: item.pics_mid_url }
+        this.fileList.push(picObj)
+      })
     }
   },
   created() {
     this.getCateList()
+    this.getEditList()
   },
   computed: {
     cataId() {
-      if (this.addForm.goods_cat.length === 3) {
-        return this.addForm.goods_cat[2]
+      if (this.editForm.goods_cat.length === 3) {
+        return this.editForm.goods_cat[2]
       }
       return null
     }
